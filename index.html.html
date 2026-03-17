@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ODC Computers - Billing</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* Added gradient background and glassmorphism card variables */
+        :root { 
+            --primary: #2c3e50; 
+            --accent: #d35400; 
+            --bg-page: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); 
+            --card: rgba(255, 255, 255, 0.65); 
+        }
+        
+        * { box-sizing: border-box; }
+        
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-page); background-attachment: fixed; margin: 0; padding: 15px; min-height: 100vh; }
+        
+        /* Glassmorphism applied to container */
+        .container { 
+            max-width: 950px; 
+            margin: auto; 
+            background: var(--card); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); 
+        }
+        
+        .bill-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid var(--primary); padding-bottom: 10px; margin-bottom: 10px; }
+        .company-info h1 { margin: 0; color: var(--primary); font-size: 30px; font-weight: 800; }
+        .company-info p { margin: 2px 0; color: #444; font-size: 13px; font-weight: 600; }
+        .owner-info { text-align: right; }
+        .owner-info h2 { margin: 0; color: var(--accent); font-size: 18px; font-weight: bold; }
+        .ph-num { margin: 1px 0; font-size: 16px; font-weight: bold; color: #222; }
+
+        .form-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
+        .form-group { flex: 1; min-width: 200px; }
+        label { font-weight: bold; font-size: 12px; display: block; margin-bottom: 5px; color: #666; }
+        input, select { width: 100%; padding: 10px; border: 1px solid rgba(0,0,0,0.2); border-radius: 6px; font-size: 14px; background: rgba(255,255,255,0.7); }
+        
+        .category-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; background: rgba(226, 232, 240, 0.8); font-weight: bold; backdrop-filter: blur(5px); }
+        .tab-btn.active { background: var(--primary); color: white; }
+        
+        .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; min-width: 650px; }
+        th, td { padding: 8px; border-bottom: 1px solid rgba(0,0,0,0.1); text-align: left; }
+        th { background: rgba(248, 250, 252, 0.6); border-bottom: 2px solid rgba(0,0,0,0.2); font-size: 13px; }
+        .desc-edit { width: 100%; border: 1px solid transparent; padding: 5px; font-weight: bold; min-width: 150px; background: transparent; }
+        .b-in { min-width: 100px; }
+        .q-in, .r-in { min-width: 70px; }
+        
+        /* Glassmorphism applied to total bar */
+        .total-bar { position: sticky; bottom: 0; background: rgba(44, 62, 80, 0.9); backdrop-filter: blur(8px); color: white; padding: 15px; display: flex; justify-content: space-between; border-radius: 10px; margin-top: 15px; font-size: 18px; font-weight: bold; z-index: 10; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); }
+        
+        #preview-section { display: none; }
+        
+        /* Modern UI Button Styles */
+        .btn-box { display: flex; gap: 15px; margin-top: 25px; flex-wrap: wrap; justify-content: center; }
+        .btn { 
+            padding: 12px 25px; 
+            border: none; 
+            border-radius: 30px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            flex: 1; 
+            text-transform: uppercase; 
+            min-width: 150px; 
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+        
+        /* Specific Button Gradients */
+        .btn-preview { background: linear-gradient(135deg, #f12711, #f5af19); }
+        .btn-download { background: linear-gradient(135deg, #11998e, #38ef7d); }
+        .btn-print { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+        .btn-back { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .btn-add { background: linear-gradient(135deg, #43e97b, #38f9d7); color: #000; flex: none; min-width: auto; padding: 8px 18px; font-size: 12px; }
+
+        /* Preview Wrapper */
+        .preview-wrapper { width: 100%; background: rgba(0,0,0,0.05); padding: 10px 0; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: flex-start; }
+        
+        /* Fixed A4 Page Size (Prevents Overlap) */
+        .pdf-page { 
+            width: 794px; /* Standard A4 Width in px */
+            min-width: 794px;
+            margin: 0 auto; 
+            padding: 40px; /* Padding inside A4 */
+            background: #fff; 
+            color: #000; 
+            position: relative; 
+            box-sizing: border-box; 
+            transform-origin: top center;
+        }
+        
+        .doc-title-center { text-align: center; margin: 10px 0; border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; padding: 5px 0; }
+        .doc-title-center h2 { margin: 0; letter-spacing: 4px; font-size: 22px; text-transform: uppercase; }
+        
+        .final-table { width: 100%; border-collapse: collapse; margin-top: 10px; border: 1px solid #000; }
+        .final-table th, .final-table td { border: 1px solid #000; padding: 8px; font-size: 14px; }
+        
+        /* Media Queries - Editor UI only */
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            #editor-ui .bill-header { flex-direction: column; align-items: center; text-align: center; }
+            #editor-ui .owner-info { text-align: center; margin-top: 15px; }
+            .form-row { flex-direction: column; gap: 10px; }
+            .form-group { width: 100%; }
+            .tab-btn { flex: 1; text-align: center; font-size: 13px; padding: 10px; }
+            .table-responsive { overflow-x: visible; }
+            table { min-width: 100%; }
+            th, td { padding: 5px 2px; font-size: 11px; }
+            .desc-edit { min-width: 80px; font-size: 11px; padding: 4px; }
+            .b-in, .q-in, .r-in { min-width: 45px; font-size: 11px; padding: 5px; }
+            input, select { padding: 8px; font-size: 13px; }
+        }
+
+        /* Print Specific Styles */
+        @media print {
+            body { background: #fff; visibility: hidden; padding: 0; margin: 0; }
+            #preview-section { visibility: visible; position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; max-width: none !important; }
+            .btn-box, .preview-wrapper { background: transparent !important; padding: 0 !important; }
+            #pdf-area { visibility: visible; transform: none !important; box-shadow: none; border: none; padding: 0 !important; width: 100% !important; min-width: 100% !important; }
+            .container { box-shadow: none !important; border: none !important; backdrop-filter: none !important; background: transparent !important; }
+            .btn { display: none !important; }
+            @page { margin: 10mm; } /* Setup page margins for printer */
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="editor-ui">
+    <div class="bill-header">
+        <div class="company-info">
+            <h1>ODC COMPUTERS</h1>
+            <p style="white-space: nowrap;">Shop No: 7, AKMG Complex, Palani Main Road,</p>
+            <p style="white-space: nowrap;">Oddanchatram, Dindigul - 624619.</p>
+        </div>
+        <div class="owner-info">
+            <h2>T. Muthukrishnan</h2>
+            <p class="ph-num">7373735966</p>
+            <p class="ph-num">8667542136</p>
+            <p class="ph-num">9976719211</p>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group"><label>Type</label><select id="docType" class="nav-field" onchange="toggleBrandColumn()"><option value="INVOICE">INVOICE</option><option value="QUOTATION">QUOTATION</option></select></div>
+        <div class="form-group"><label>Date</label><input type="date" id="docDate" class="nav-field"></div>
+        <div class="form-group" style="flex: 2;"><label>Customer Name</label><input type="text" id="custName" class="nav-field" placeholder="Client Name, City"></div>
+    </div>
+
+    <div class="category-tabs">
+        <button class="tab-btn active" onclick="showCat('HD', this)">HD CAMERA</button>
+        <button class="tab-btn" onclick="showCat('IP', this)">IP CAMERA</button>
+        <button class="tab-btn" onclick="showCat('DESK', this)">DESKTOP</button>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th width="25">Sl</th>
+                    <th>Description</th>
+                    <th class="brand-col" width="90">Brand</th>
+                    <th width="50">Qty</th>
+                    <th width="60">Rate</th>
+                    <th width="70">Total</th>
+                </tr>
+            </thead>
+            <tbody id="billBody"></tbody>
+        </table>
+    </div>
+    
+    <div style="text-align: right;">
+        <button class="btn btn-add" onclick="addOtherRow()">+ Add New Item</button>
+    </div>
+
+    <div class="total-bar"><span>Grand Total:</span><span id="liveTotal">₹ 0.00</span></div>
+    
+    <div class="btn-box">
+        <button class="btn btn-preview" onclick="showPreview()">Preview Bill</button>
+    </div>
+</div>
+
+<div id="preview-section" class="container" style="padding: 15px; max-width: 220mm; background: var(--card);">
+    <div class="preview-wrapper" id="preview-wrap">
+        <div id="pdf-area" class="pdf-page">
+            <div class="bill-header" style="border-bottom: 2px solid #000; flex-direction: row; display: flex; justify-content: space-between; text-align: left; padding-bottom: 10px;">
+                <div style="text-align: left; flex: 1;">
+                    <h1 style="margin:0; font-size: 28px;">ODC COMPUTERS</h1>
+                    <p style="margin: 3px 0; font-size: 14px; white-space: nowrap;">Shop No: 7, AKMG Complex, Palani Main Road,</p>
+                    <p style="margin: 3px 0; font-size: 14px; white-space: nowrap;">Oddanchatram, Dindigul - 624619.</p>
+                </div>
+                <div style="text-align: right; flex: 1;">
+                    <h2 style="margin:0; font-size: 20px; color: #d35400;">T. Muthukrishnan</h2>
+                    <p class="ph-num" style="margin: 2px 0; font-size: 17px; font-weight: bold; color: #222;">7373735966</p>
+                    <p class="ph-num" style="margin: 2px 0; font-size: 17px; font-weight: bold; color: #222;">8667542136</p>
+                    <p class="ph-num" style="margin: 2px 0; font-size: 17px; font-weight: bold; color: #222;">9976719211</p>
+                </div>
+            </div>
+
+            <div class="doc-title-center">
+                <h2 id="out-type"></h2>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin: 15px 0; font-size: 16px;">
+                <div>
+                    <strong>To:</strong><br><span id="out-cust"></span>
+                </div>
+                <div style="text-align: right;">
+                    <strong>Date:</strong> <span id="out-date"></span>
+                </div>
+            </div>
+
+            <table class="final-table">
+                <thead id="finalHead"></thead>
+                <tbody id="finalBody"></tbody>
+            </table>
+
+            <div style="text-align:right; font-size:20px; font-weight:bold; margin-top:15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
+                Grand Total: ₹ <span id="out-total"></span>
+            </div>
+
+            <div style="margin-top:50px; display:flex; justify-content:space-between; align-items: flex-end;">
+                <div style="font-size: 12px; color: #444; text-align: left; max-width: 60%;">
+                    <strong style="font-size: 13px; color: #000;">Terms & Conditions:</strong><br>
+                    1. Goods once sold cannot be taken back or exchanged.<br>
+                    2. Warranty as per respective manufacturer's terms.
+                </div>
+                <div style="text-align: center;">
+                    <p style="font-weight: bold; margin-bottom: 40px; margin-top: 0; font-size: 16px;">For ODC COMPUTERS</p>
+                    <p style="border-top:1.5px solid #000; width:200px; padding-top: 5px; font-size: 15px; margin-bottom: 0;">Authorized Signatory</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="btn-box">
+        <button class="btn btn-download" onclick="downloadPDF()">Download PDF</button>
+        <button class="btn btn-print" onclick="window.print()">Print Bill</button>
+        <button class="btn btn-back" onclick="closePreview()">Back</button>
+    </div>
+</div>
+
+<script>
+    let currentCat = 'HD';
+    const items = {
+        HD: ["HD Camera Dome", "HD Camera Bullet", "HD Camera Dome", "HD Camera Bullet", "DVR", "SMPS", "Hard Disk AV", "BNC and DC Connectors", "3+1 Coaxial Cable", "PVC Box", "Spike Busters", "HDMI Cable", "Installation Charges", "Online Configuration", "Rack 2U / 4U", "Others"],
+        IP: ["IP Camera Dome", "IP Camera Bullet", "IP Camera Dome", "IP Camera Bullet", "NVR System", "Hard Disk AV", "POE Switch 4 Port", "POE Switch 8 Port", "Media Convertor", "RJ 45 Network Jack", "Crimping Work", "PVC Junction Box", "Cat 6 Network Cable", "Installation Charges", "Spike Buster", "HDMI Cable", "Online Configuration", "Others"],
+        DESK: ["Processor", "Motherboard", "RAM", "Hard Disk / SSD", "Cabinet with SMPS", "Monitor LED", "Keyboard", "Mouse", "UPS", "OS (Windows)", "Desktop Installation", "Printer"]
+    };
+
+    function init() {
+        const body = document.getElementById('billBody');
+        for (let cat in items) {
+            items[cat].forEach((name) => {
+                const row = document.createElement('tr');
+                row.className = `row-${cat} item-row`;
+                row.style.display = cat === 'HD' ? '' : 'none';
+                let brandField = `<input type="text" class="b-in nav-field">`;
+                const ln = name.toLowerCase();
+                if(ln.includes("dvr") || ln.includes("camera") || ln.includes("nvr")) {
+                    brandField = `<select class="b-in nav-field"><option value="">Select</option><option>Hikvision</option><option>CP Plus</option><option>Dahua</option></select>`;
+                }
+                row.innerHTML = `<td align="center" class="sl-no"></td>
+                    <td><input type="text" value="${name}" class="desc-edit nav-field"></td>
+                    <td class="brand-col">${brandField}</td>
+                    <td><input type="number" class="q-in nav-field" oninput="calc()"></td>
+                    <td><input type="number" class="r-in nav-field" oninput="calc()"></td>
+                    <td align="right" class="t-row">0.00</td>`;
+                body.appendChild(row);
+            });
+        }
+        document.getElementById('docDate').valueAsDate = new Date();
+        updateSlNo();
+        toggleBrandColumn();
+        enableEnterNavigation();
+    }
+
+    // Automatically update Sl No based on visible category rows
+    function updateSlNo() {
+        let sl = 1;
+        document.querySelectorAll(`.row-${currentCat}`).forEach(r => {
+            r.querySelector('.sl-no').innerText = sl++;
+        });
+    }
+
+    // Dynamic row insertion function
+    function addOtherRow() {
+        const tbody = document.getElementById('billBody');
+        const row = document.createElement('tr');
+        row.className = `row-${currentCat} item-row`;
+        
+        let brandField = `<input type="text" class="b-in nav-field">`;
+        const isInv = document.getElementById('docType').value === "INVOICE";
+        const brandStyle = isInv ? "none" : "";
+
+        row.innerHTML = `<td align="center" class="sl-no"></td>
+            <td><input type="text" value="Extra Item" class="desc-edit nav-field" placeholder="Item Name"></td>
+            <td class="brand-col" style="display: ${brandStyle}">${brandField}</td>
+            <td><input type="number" class="q-in nav-field" oninput="calc()"></td>
+            <td><input type="number" class="r-in nav-field" oninput="calc()"></td>
+            <td align="right" class="t-row">0.00</td>`;
+        
+        // Find last row of current category and insert after
+        const rows = document.querySelectorAll(`.row-${currentCat}`);
+        const lastRow = rows[rows.length - 1];
+        if(lastRow) {
+            lastRow.parentNode.insertBefore(row, lastRow.nextSibling);
+        } else {
+            tbody.appendChild(row);
+        }
+        
+        updateSlNo();
+        enableEnterNavigation();
+    }
+
+    function toggleBrandColumn() {
+        const isInv = document.getElementById('docType').value === "INVOICE";
+        document.querySelectorAll('.brand-col').forEach(c => c.style.display = isInv ? "none" : "");
+    }
+
+    function calc() {
+        let grand = 0;
+        document.querySelectorAll('.item-row').forEach(r => {
+            const q = parseFloat(r.querySelector('.q-in').value) || 0;
+            const rt = parseFloat(r.querySelector('.r-in').value) || 0;
+            const t = q * rt;
+            r.querySelector('.t-row').innerText = t > 0 ? t.toFixed(2) : "0.00";
+            grand += t;
+        });
+        document.getElementById('liveTotal').innerText = "₹ " + grand.toLocaleString('en-IN', {minimumFractionDigits: 2});
+    }
+
+    // Scaled rendering for mobile preview to avoid overlapping
+    function scalePreview() {
+        const wrapper = document.getElementById('preview-wrap');
+        const pdf = document.getElementById('pdf-area');
+        if (window.innerWidth <= 794) {
+            const scale = wrapper.clientWidth / 794; // 794 is fixed A4 px width
+            pdf.style.transform = `scale(${scale})`;
+            wrapper.style.height = (pdf.offsetHeight * scale) + 'px';
+        } else {
+            pdf.style.transform = 'none';
+            wrapper.style.height = 'auto';
+        }
+    }
+    
+    // Adjust scale when mobile orientation changes
+    window.addEventListener('resize', () => {
+        if(document.getElementById('preview-section').style.display === 'block'){
+            scalePreview();
+        }
+    });
+
+    function showPreview() {
+        const docType = document.getElementById('docType').value;
+        const isQuo = (docType === "QUOTATION");
+        const finalHead = document.getElementById('finalHead');
+        finalHead.innerHTML = isQuo ? 
+            `<tr><th width="40">Sl</th><th>Description</th><th>Brand</th><th width="50">Qty</th><th width="80">Rate</th><th width="100">Total</th></tr>` :
+            `<tr><th width="40">Sl</th><th>Description</th><th width="50">Qty</th><th width="80">Rate</th><th width="100">Total</th></tr>`;
+
+        const finalBody = document.getElementById('finalBody');
+        finalBody.innerHTML = '';
+        let sl = 1, total = 0;
+
+        document.querySelectorAll('.item-row').forEach(r => {
+            const q = parseFloat(r.querySelector('.q-in').value) || 0;
+            if(q > 0) {
+                const d = r.querySelector('.desc-edit').value;
+                const b = r.querySelector('.b-in').value;
+                const rt = parseFloat(r.querySelector('.r-in').value) || 0;
+                const t = q * rt;
+                total += t;
+                finalBody.innerHTML += isQuo ? 
+                    `<tr><td align="center">${sl++}</td><td>${d}</td><td>${b}</td><td align="center">${q}</td><td align="right">${rt.toFixed(2)}</td><td align="right">${t.toFixed(2)}</td></tr>` :
+                    `<tr><td align="center">${sl++}</td><td>${d}</td><td align="center">${q}</td><td align="right">${rt.toFixed(2)}</td><td align="right">${t.toFixed(2)}</td></tr>`;
+            }
+        });
+
+        document.getElementById('out-type').innerText = docType;
+        
+        let rawDate = document.getElementById('docDate').value;
+        if(rawDate) {
+            let dArr = rawDate.split('-');
+            document.getElementById('out-date').innerText = `${dArr[2]}-${dArr[1]}-${dArr[0]}`;
+        } else {
+            document.getElementById('out-date').innerText = "";
+        }
+        
+        let rawCustName = document.getElementById('custName').value || "Valued Customer";
+        let formattedCustName = rawCustName.split(',').map(name => name.trim()).join('<br>');
+        document.getElementById('out-cust').innerHTML = formattedCustName;
+        
+        document.getElementById('out-total').innerText = total.toLocaleString('en-IN', {minimumFractionDigits: 2});
+        
+        document.getElementById('editor-ui').style.display = 'none';
+        document.getElementById('preview-section').style.display = 'block';
+        
+        scalePreview(); // Execute scale fix
+        window.scrollTo(0,0);
+    }
+
+    function closePreview() { document.getElementById('editor-ui').style.display = 'block'; document.getElementById('preview-section').style.display = 'none'; }
+    
+    function downloadPDF() {
+        const element = document.getElementById('pdf-area');
+        element.style.transform = 'none'; // Temporarily clear scale for perfect rendering
+        
+        const opt = {
+            margin: 0,
+            filename: 'ODC_Bill.pdf',
+            image: { type: 'jpeg', quality: 1 },
+            html2canvas: { scale: 4, useCORS: true, letterRendering: true, y: 0, windowWidth: 800 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(element).save().then(() => {
+            scalePreview(); // Re-apply scale after download
+        });
+    }
+    
+    function enableEnterNavigation() {
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const fields = Array.from(document.querySelectorAll('.nav-field')).filter(f => f.offsetParent !== null);
+                const index = fields.indexOf(document.activeElement);
+                if (index > -1 && index < fields.length - 1) { e.preventDefault(); fields[index + 1].focus(); }
+            }
+        });
+    }
+    
+    function showCat(cat, btn) {
+        currentCat = cat; // Update global active category
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.item-row').forEach(r => r.style.display = 'none');
+        document.querySelectorAll(`.row-${cat}`).forEach(r => r.style.display = '');
+        updateSlNo();
+    }
+    init();
+</script>
+</body>
+</html>
